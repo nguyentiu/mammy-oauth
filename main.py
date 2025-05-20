@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 import requests
 import json
 import os
+import time
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -25,11 +26,11 @@ def get_auth_url():
     return {"auth_url": auth_url}
 
 # ==== CALLBACK: LƯU TOKEN VÀO FILE ====
-@app.get("/oauth/callback")
+@app.get("/oauth/callback", response_class=HTMLResponse)
 def oauth_callback(request: Request):
     auth_code = request.query_params.get("auth_code")
     if not auth_code:
-        return {"error": "No auth_code received"}
+        return "<h3>❌ Không có auth_code</h3>"
 
     token_url = "https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/"
     payload = {
@@ -42,27 +43,61 @@ def oauth_callback(request: Request):
     data = res.json()
 
     if data.get("code") == 0:
+        d = data["data"]
+        d["advertiser_id"] = d["advertiser_ids"][0]
+        d["expires_at"] = int(time.time()) + d.get("expires_in", 3600)
         with open(TOKEN_FILE, "w") as f:
-            json.dump(data["data"], f, indent=2)
+            json.dump(d, f, indent=2)
+        return f"""
+        <h2>✅ Lấy token thành công</h2>
+        <ul>
+            <li><b>Access Token:</b> {d['access_token']}</li>
+            <li><b>Advertiser ID:</b> {d['advertiser_id']}</li>
+        </ul>
+        <p>Truy cập: 
+        <a href='/campaigns'>Xem campaigns</a>
+        </p>
+        """
+    return f"<pre>{data}</pre>"
 
-    return data
+# ==== HÀM TỰ ĐỘNG REFRESH TOKEN ====
+def get_valid_token():
+    if not os.path.exists(TOKEN_FILE):
+        return None
+
+    with open(TOKEN_FILE, "r") as f:
+        token_data = json.load(f)
+
+    if token_data.get("expires_at", 0) > time.time():
+        return token_data  # still valid
+
+    # Token expired → refresh
+    payload = {
+        "app_id": APP_ID,
+        "secret": APP_SECRET,
+        "grant_type": "refresh_token",
+        "refresh_token": token_data["refresh_token"]
+    }
+    res = requests.post("https://business-api.tiktok.com/open_api/v1.3/oauth2/refresh_token/", json=payload)
+    data = res.json()
+    if data.get("code") == 0:
+        new_data = data["data"]
+        new_data["advertiser_id"] = token_data["advertiser_id"]
+        new_data["expires_at"] = int(time.time()) + new_data.get("expires_in", 3600)
+        with open(TOKEN_FILE, "w") as f:
+            json.dump(new_data, f, indent=2)
+        return new_data
+    return None
 
 # ==== HIỂN THỊ CHIẾN DỊCH DẠNG HTML BẢNG ====
 @app.get("/campaigns", response_class=HTMLResponse)
-def get_all_campaigns(
-    request: Request,
-    access_token: str = Query(default=None),
-    advertiser_id: str = Query(default=None)
-):
-    if not access_token or not advertiser_id:
-        if os.path.exists(TOKEN_FILE):
-            with open(TOKEN_FILE, "r") as f:
-                token_data = json.load(f)
-                access_token = access_token or token_data.get("access_token")
-                advertiser_id = advertiser_id or token_data.get("advertiser_id")
+def get_campaigns(request: Request):
+    token_data = get_valid_token()
+    if not token_data:
+        return HTMLResponse("<h3>⚠️ Không có token hợp lệ, vui lòng auth lại</h3>", status_code=403)
 
-    if not access_token or not advertiser_id:
-        return HTMLResponse("<h3>⚠️ Thiếu access_token hoặc advertiser_id</h3>", status_code=400)
+    access_token = token_data["access_token"]
+    advertiser_id = token_data["advertiser_id"]
 
     url = "https://business-api.tiktok.com/open_api/v1.3/campaign/get/"
     headers = {"Access-Token": access_token}
