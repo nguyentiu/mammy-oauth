@@ -35,3 +35,45 @@ def oauth_callback(request: Request):
         return res.json()
     except:
         return {"error": "Invalid response", "raw": res.text}
+
+@app.get("/campaigns/{advertiser_id}")
+def get_all_campaigns(advertiser_id: str):
+    access_token = "8ef7508b6aaea9361bdedf663a3f91df19b2f616"  # 👉 token bạn đã lấy
+    url = "https://business-api.tiktok.com/open_api/v1.3/campaign/get/"
+
+    headers = {
+        "Access-Token": access_token
+    }
+
+    # TikTok API phân trang nên cần gọi nhiều lần
+    all_campaigns = []
+    page = 1
+    page_size = 50
+
+    while True:
+        params = {
+            "advertiser_id": advertiser_id,
+            "page": page,
+            "page_size": page_size
+        }
+
+        res = requests.get(url, headers=headers, params=params)
+        if res.status_code != 200:
+            return {"error": "TikTok API error", "status_code": res.status_code, "raw": res.text}
+
+        data = res.json()
+        campaigns = data.get("data", {}).get("list", [])
+
+        all_campaigns.extend(campaigns)
+
+        # Kiểm tra có trang tiếp không
+        pagination = data.get("data", {}).get("page_info", {})
+        if pagination.get("total_page", 1) <= page:
+            break
+
+        page += 1
+
+    return {
+        "total": len(all_campaigns),
+        "campaigns": all_campaigns
+    }
