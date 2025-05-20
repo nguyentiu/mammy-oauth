@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Campaigns for Advertiser {{ advertiser_id }}</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h2>📊 Campaigns for Advertiser {{ advertiser_id }}</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Tên</th>
+            <th>Trạng thái</th>
+            <th>Budget</th>
+        </tr>
+        {% for c in campaigns %}
+        <tr>
+            <td>{{ c.campaign_id }}</td>
+            <td>{{ c.campaign_name }}</td>
+            <td>{{ c.status }}</td>
+            <td>{{ c.budget }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
