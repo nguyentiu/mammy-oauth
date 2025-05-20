@@ -6,7 +6,7 @@ app = FastAPI()
 # === THÔNG TIN APP ===
 APP_ID = "7506424810470277121"
 APP_SECRET = "08b8c695d62828af9e2d6dc42f177f99159a9e1e"
-REDIRECT_URI = "https://mammy-oauth.onrender.com/oauth/callback"  # ✅ Đúng route bạn đã cấu hình
+REDIRECT_URI = "https://mammy-oauth.onrender.com/oauth/callback"  # Đúng route đã đăng ký
 
 @app.get("/")
 def get_auth_url():
