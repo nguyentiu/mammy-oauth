@@ -16,7 +16,7 @@ def get_auth_url():
     )
     return {"auth_url": auth_url}
 
-@app.get("/callback")
+@app.get("/oauth/callback")
 def oauth_callback(request: Request):
     auth_code = request.query_params.get("auth_code")
     token_url = "https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/"
